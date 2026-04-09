@@ -62,3 +62,5 @@ typings/
 .next
 
 generate-key.js
+dist/
+bun.lock
