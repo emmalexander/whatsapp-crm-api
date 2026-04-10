@@ -64,3 +64,5 @@ typings/
 generate-key.js
 dist/
 bun.lock
+/generated/prisma
+/src/generated/prisma

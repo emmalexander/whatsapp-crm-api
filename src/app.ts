@@ -2,10 +2,9 @@ import express from "express";
 import cors from "cors";
 
 import { PORT } from "../config/env.js";
-//import { createRequire } from 'module';
+
 import cookieParser from "cookie-parser";
-//const require = createRequire(import.meta.url);
-//const { cookieParser } = require('cookie-parser');
+import { connectDB, disconnectDB } from "../config/db.js";
 
 // import authRouter from "../routes/auth.routes.js";
 // import userRouter from "../routes/user.routes.js";
@@ -14,14 +13,14 @@ import cookieParser from "cookie-parser";
 // import errorMiddleware from "../middlewares/error.middleware.js";
 // import arcjetMiddleware from "../middlewares/arcjet.middleware.js";
 
-
 // import workflowRouter from "./routes/workflow.routes.js";
 
 const app = express();
+connectDB();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({extended: true}));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 // app.use(arcjetMiddleware);
 
@@ -32,16 +31,37 @@ app.use(cookieParser());
 
 //app.use(errorMiddleware);
 
-
-app.get("/", (req, res)=>{
-    res.send('Welcome to Task Manager API');
+app.get("/", (req, res) => {
+  res.send("Welcome to Whatsapp CRM API");
 });
 
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(Number(PORT), "0.0.0.0", async ()=>{
-        console.log(`Task Manager APP is running on http://localhost:${PORT}`);
-        //await connectToDatabase();
-    });
-}
+const server = app.listen(Number(PORT), "0.0.0.0", async () => {
+  console.log(`Task Whatsapp CRM is running on http://localhost:${PORT}`);
+  //await connectToDatabase();
+});
+
+// Handle unhandled promise rejections  (e.g database connection errors)
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
+  server.close(async () => {
+    await disconnectDB();
+    process.exit(1);
+  });
+});
+
+process.on("uncaughtException", async (err) => {
+  console.error("Uncaught Exception:", err);
+  await disconnectDB();
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on("SIGTERM", (err) => {
+  console.log("SIGTERM Received, Shutting down gracefully");
+  server.close(async () => {
+    await disconnectDB();
+    process.exit(0);
+  });
+});
 
 export default app;
