@@ -1,76 +1,114 @@
-// import User from "../models/user.model.js";
-// import TaskList from "../models/task-list.model.js";
+import type { Request, Response, NextFunction } from "express";
+import { prisma } from "../config/db";
 
-// import type { Request, Response, NextFunction } from "express";
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const users = await prisma.user.findMany();
 
-// export const getUsers = async (req: Request, res: Response, next: NextFunction)=> {
-//     try {
-//         const users = await User.find();
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    next(error);
+  }
+};
 
-//         res.status(200).json({success: true, data: users});
-//     } catch (error){
-//         next(error);
-//     }
-// }
+export const getUser = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      omit: {
+        password: true,
+        emailVerificationOTP: true,
+        resetPasswordOTP: true,
+        emailVerificationOTPExpires: true,
+        updatedAt: true,
+        lastVerificationResend: true,
+      },
+    });
 
-// export const getUser = async (req: any, res: Response, next: NextFunction)=> {
-//     try {
-//         const user = await User.findById(req.user._id,).select("-password -emailVerificationOTP -resetPasswordOTP -emailVerificationOTPExpires -updatedAt -lastVerificationResend -__v");
+    if (!user) {
+      const error = new Error("User not found");
+      res.statusCode = 404;
+      throw error;
+    }
 
-//         if(!user){
-//             const error = new Error("User not found");
-//             res.statusCode = 404;
-//             throw error;
-//         }
+    const userData = {
+      user: user,
+    };
 
-//         const userTaskLists = await TaskList.find({userId: user._id}).select("-__v").populate('tasks')??[];
+    res.status(200).json({ success: true, data: userData });
+  } catch (error) {
+    next(error);
+  }
+};
 
-//         const userData = {
-//             user: user,
-//             taskLists: userTaskLists,
-//         };
+export const updateUser = async (
+  req: any,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      omit: {
+        password: true,
+      },
+    });
 
-//         res.status(200).json({success: true, data: userData});
-//     } catch (error){
-//         next(error);
-//     }
-// }
+    const update = req.body;
 
-// export const updateUser = async (req: any, res: Response, next: NextFunction)=> {
-//     try {
-//         const user = await User.findById(req.user._id,).select("-password");
+    if (!user) {
+      const error = new Error("User not found");
+      res.statusCode = 404;
+      throw error;
+    }
 
-//         const update = req.body;
+    Object.assign(user, update);
 
-//         if(!user){
-//             const error = new Error("User not found");
-//             res.statusCode = 404;
-//             throw error;
-//         }
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: user,
+    });
 
-//         Object.assign(user, update);
-//         await user.save();
+    res
+      .status(200)
+      .json({ success: true, message: "User updated successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
 
-//         res.status(200).json({success: true, message: "User updated successfully"});
-//     } catch (error){
-//         next(error);
-//     }
-// }
+export const deleteUser = async (
+  req: any,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user.id;
 
-// export const deleteUser = async (req: any, res: Response, next: NextFunction)=> {
-//     try {
-//         const userId = req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
 
-//         const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      const error = new Error("User not found");
+      res.statusCode = 404;
+      throw error;
+    }
 
-//         if(!user){
-//             const error = new Error("User not found");
-//             res.statusCode = 404;
-//             throw error;
-//         }
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
 
-//         res.status(200).json({success: true, message: "User deleted successfully"});
-//     } catch (error){
-//         next(error);
-//     }
-// }
+    res
+      .status(200)
+      .json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
