@@ -4,6 +4,7 @@ import {
   getUsers,
   updateUser,
   deleteUser,
+  forceDeleteUser,
 } from "../controllers/user.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 
@@ -18,5 +19,7 @@ userRoute.get("/", authorize, getUser);
 userRoute.put("/", authorize, updateUser);
 
 userRoute.delete("/", authorize, deleteUser);
+
+userRoute.delete("/force/:id", forceDeleteUser);
 
 export default userRoute;

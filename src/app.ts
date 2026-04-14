@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "../config/db.js";
 
 import authRouter from "../routes/auth.routes.js";
-// import userRouter from "../routes/user.routes.js";
+import userRouter from "../routes/user.routes.js";
 // import tasksRouter from "../routes/task.routes.js";
 // import connectToDatabase from "../database/mongodb.js";
 import errorMiddleware from "../middlewares/error.middleware.js";
@@ -25,7 +25,7 @@ app.use(cookieParser());
 // app.use(arcjetMiddleware);
 
 app.use("/api/v1/auth", authRouter);
-// app.use('/api/v1/users', userRouter);
+app.use("/api/v1/users", userRouter);
 // app.use('/api/v1/tasks', tasksRouter);
 // app.use('/api/v1/workflows', workflowRouter);
 

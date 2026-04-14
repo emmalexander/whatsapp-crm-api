@@ -112,3 +112,33 @@ export const deleteUser = async (
     next(error);
   }
 };
+
+export const forceDeleteUser = async (
+  req: any,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      const error = new Error("User not found");
+      res.statusCode = 404;
+      throw error;
+    }
+
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+
+    res
+      .status(200)
+      .json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
