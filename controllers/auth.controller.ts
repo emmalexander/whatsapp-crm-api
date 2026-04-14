@@ -30,6 +30,7 @@ const sendEmail = async (to: string, subject: string, html: string) => {
   await transporter.sendMail(mailOptions);
 };
 
+//MARK: Send OTP Email
 const sendOTPEmail = async (
   to: string,
   userName: string,
@@ -53,16 +54,15 @@ const sendOTPEmail = async (
   await sendEmail(to, subject, message);
 };
 
+// MARK: Sign Up
 export const signUp = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const { firstName, middleName, lastName, phoneNumber, email, password } = req.body;
+    const { firstName, middleName, lastName, phoneNumber, email, password } =
+      req.body;
 
     const existingUser = await prisma.user.findUnique({
       where: {
@@ -98,28 +98,18 @@ export const signUp = async (
       },
     });
 
-    const createdUserId = (newUsers[0] as any)._id as mongoose.Types.ObjectId;
-    const newUserWithOutPassword = await User.findById(newUsers[0]?._id).select(
-      "-password -emailVerificationOTP -resetPasswordOTP",
-    );
+    const createdUserId = newUser.id;
 
-    // Create a default task list for the user within the same session
-    const defaultTaskLists = await TaskList.create(
-      [
-        {
-          name: "My Tasks",
-          description: "Default task list",
-          userId: createdUserId,
-          isDefault: true,
-        },
-      ],
-      { session },
-    );
+    const newUserWithOutPassword = await prisma.user.findUnique({
+      where: { id: createdUserId },
+      omit: {
+        password: true,
+        emailVerificationOTP: true,
+        resetPasswordOTP: true,
+      },
+    });
 
     await sendOTPEmail(email, firstName, otp, "verification");
-
-    await session.commitTransaction();
-    session.endSession();
 
     res.status(201).json({
       success: true,
@@ -127,15 +117,14 @@ export const signUp = async (
         "User created successfully. Please verify your email using the OTP sent to your inbox.",
       data: {
         user: newUserWithOutPassword,
-        taskList: defaultTaskLists[0],
       },
     });
   } catch (error) {
-    session.abortTransaction();
     next(error);
   }
 };
 
+// MARK: Verify Email
 export const verifyEmail = async (
   req: Request,
   res: Response,
@@ -150,7 +139,10 @@ export const verifyEmail = async (
       throw error;
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
+    //const user = await User.findOne({ email });
 
     if (!user) {
       const error: any = new Error("User not found");
@@ -184,14 +176,22 @@ export const verifyEmail = async (
     user.emailVerificationOTP = null as any;
     user.emailVerificationOTPExpires = null as any;
 
-    await user.save();
-
-    const userWithoutPassword = await User.findById(user._id).select(
-      "-password -emailVerificationOTP -resetPasswordOTP",
-    );
-    const { accessToken, refreshToken } = await generateTokens({
-      _id: user._id,
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: user,
     });
+
+    const userWithoutPassword = await prisma.user.findUnique({
+      where: { id: user.id },
+      omit: {
+        password: true,
+        emailVerificationOTP: true,
+        resetPasswordOTP: true,
+      },
+    });
+    const { accessToken, refreshToken } = await generateTokens(user.id);
 
     res.status(200).json({
       success: true,
@@ -203,6 +203,7 @@ export const verifyEmail = async (
   }
 };
 
+// MARK: Resend Verification Code
 export const resendVerificationCode = async (
   req: Request,
   res: Response,
@@ -216,7 +217,9 @@ export const resendVerificationCode = async (
       throw error;
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
 
     if (!user) {
       const error: any = new Error("User not found");
@@ -249,20 +252,25 @@ export const resendVerificationCode = async (
     user.emailVerificationOTPExpires = otpExpires;
     user.lastVerificationResend = new Date();
 
-    await user.save();
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: user,
+    });
+
     await sendOTPEmail(email, user.firstName, otp, "verification");
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Verification code resent to your email",
-      });
+    res.status(200).json({
+      success: true,
+      message: "Verification code resent to your email",
+    });
   } catch (error) {
     next(error);
   }
 };
 
+// MARK: Request Password Reset
 export const requestPasswordReset = async (
   req: Request,
   res: Response,
@@ -276,7 +284,9 @@ export const requestPasswordReset = async (
       throw error;
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
 
     if (!user) {
       const error: any = new Error("User not found");
@@ -290,7 +300,10 @@ export const requestPasswordReset = async (
     user.resetPasswordOTP = otp;
     user.resetPasswordOTPExpires = otpExpires;
 
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: user,
+    });
 
     await sendOTPEmail(email, user.firstName, otp, "reset");
 
@@ -302,6 +315,7 @@ export const requestPasswordReset = async (
   }
 };
 
+// MARK: Verify Password Reset
 export const verifyPasswordReset = async (
   req: Request,
   res: Response,
@@ -316,7 +330,12 @@ export const verifyPasswordReset = async (
       throw error;
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
     if (!user) {
       const error: any = new Error("User not found");
       error.statusCode = 404;
@@ -344,7 +363,12 @@ export const verifyPasswordReset = async (
     user.resetPasswordOTP = null as any;
     user.resetPasswordOTPExpires = null as any;
 
-    await user.save();
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: user,
+    });
 
     res
       .status(200)
@@ -354,6 +378,7 @@ export const verifyPasswordReset = async (
   }
 };
 
+// MARK: Sign In
 export const signIn = async (
   req: Request,
   res: Response,
@@ -362,7 +387,9 @@ export const signIn = async (
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
 
     if (!user) {
       const error: any = new Error("User does not exist");
@@ -378,9 +405,17 @@ export const signIn = async (
       throw error;
     }
 
-    const userWithoutPassword = await User.findById(user._id).select(
-      "-password -emailVerificationOTP -resetPasswordOTP -emailVerificationOTPExpires -updatedAt -lastVerificationResend",
-    );
+    const userWithoutPassword = await prisma.user.findUnique({
+      where: { id: user.id },
+      omit: {
+        password: true,
+        emailVerificationOTP: true,
+        resetPasswordOTP: true,
+        emailVerificationOTPExpires: true,
+        updatedAt: true,
+        lastVerificationResend: true,
+      },
+    });
 
     const isPasswordValid = bcrypt.compareSync(password, user.password);
 
@@ -390,9 +425,7 @@ export const signIn = async (
       throw error;
     }
 
-    const { accessToken, refreshToken } = await generateTokens({
-      _id: user._id,
-    });
+    const { accessToken, refreshToken } = await generateTokens(user.id);
 
     res.status(200).json({
       success: true,
@@ -408,6 +441,7 @@ export const signIn = async (
   }
 };
 
+//MARK: Refresh Token
 export const refreshToken = async (
   req: Request,
   res: Response,
@@ -428,7 +462,7 @@ export const refreshToken = async (
       throw error;
     }
 
-    const tokens = await generateTokens({ _id: decoded.userId });
+    const tokens = await generateTokens(decoded.userId);
 
     res.status(200).json({
       success: true,
@@ -440,20 +474,24 @@ export const refreshToken = async (
   }
 };
 
-export const signOut = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
+// MARK: Sign Out
+export const signOut = async (req: any, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = req.body;
+
+    const user = req.user;
+
     if (!refreshToken) {
       const error: any = new Error("Refresh token is required");
       error.statusCode = 400;
       throw error;
     }
 
-    const tokenRecord = await UserToken.findOne({ token: refreshToken });
+    const tokenRecord = await prisma.userToken.findUnique({
+      where: {
+        userId: user.id,
+      },
+    });
     if (!tokenRecord) {
       return res.status(200).json({
         success: true,
@@ -461,7 +499,11 @@ export const signOut = async (
       });
     }
 
-    await tokenRecord.deleteOne();
+    await prisma.userToken.delete({
+      where: {
+        userId: user.id,
+      },
+    });
 
     res.status(200).json({
       success: true,

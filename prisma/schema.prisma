@@ -29,7 +29,11 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+
   userToken UserToken?
+  contacts  Contact[]
+  reminders Reminder[]
+  templates Template[]
 }
 
 model UserToken {
@@ -37,7 +41,42 @@ model UserToken {
   userId String @unique
   token  String
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   expiresAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  name      String
+  phone     String
+  status    String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Reminder {
+  id        String   @id @default(uuid())
+  contactId String
+  userId    String
+  remindAt  DateTime
+  note      String?
+  completed Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contactId])
+}
+
+model Template {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

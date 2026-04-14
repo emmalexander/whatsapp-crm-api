@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { signIn, signOut, signUp, refreshToken, verifyEmail, resendVerificationCode, requestPasswordReset, verifyPasswordReset } from "../controllers/auth.controller.js";
+import authorize from "../middlewares/auth.middleware.js";
 
 const authRouter = Router();
 
@@ -25,6 +26,6 @@ authRouter.post('/verify-password-reset', verifyPasswordReset);
 authRouter.post('/refresh-token', refreshToken);
 
 // Path: api/v1/auth/sign-out (POST)
-authRouter.post('/sign-out', signOut);
+authRouter.post('/sign-out', authorize, signOut);
 
 export default authRouter;

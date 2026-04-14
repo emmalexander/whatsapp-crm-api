@@ -6,11 +6,11 @@ import { PORT } from "../config/env.js";
 import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "../config/db.js";
 
-// import authRouter from "../routes/auth.routes.js";
+import authRouter from "../routes/auth.routes.js";
 // import userRouter from "../routes/user.routes.js";
 // import tasksRouter from "../routes/task.routes.js";
 // import connectToDatabase from "../database/mongodb.js";
-// import errorMiddleware from "../middlewares/error.middleware.js";
+import errorMiddleware from "../middlewares/error.middleware.js";
 // import arcjetMiddleware from "../middlewares/arcjet.middleware.js";
 
 // import workflowRouter from "./routes/workflow.routes.js";
@@ -24,19 +24,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 // app.use(arcjetMiddleware);
 
-// app.use('/api/v1/auth', authRouter);
+app.use("/api/v1/auth", authRouter);
 // app.use('/api/v1/users', userRouter);
 // app.use('/api/v1/tasks', tasksRouter);
 // app.use('/api/v1/workflows', workflowRouter);
 
-//app.use(errorMiddleware);
+app.use(errorMiddleware);
 
 app.get("/", (req, res) => {
   res.send("Welcome to Whatsapp CRM API");
 });
 
-const server = app.listen(Number(PORT), "0.0.0.0", async () => {
-  console.log(`Task Whatsapp CRM is running on http://localhost:${PORT}`);
+const server = app.listen(Number(PORT), async () => {
+  console.log(`Whatsapp CRM API is running on http://localhost:${PORT}`);
   //await connectToDatabase();
 });
 
